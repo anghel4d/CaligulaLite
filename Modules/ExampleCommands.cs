@@ -65,9 +65,9 @@ namespace CaligulaLite.Modules
                 var answer = replies[new Random().Next(replies.Count - 1)];
                 
                 // build out our reply with the handy StringBuilder
-                sb.AppendLine($"You asked: [****]...");
+                sb.AppendLine($"You asked: {args}...");
                 sb.AppendLine();
-                sb.AppendLine($"...your answer is [****]");
+                sb.AppendLine($"...your answer is {answer}");
 
                 // bonus - let's switch out the reply and change the color based on it
                 switch (answer) 
