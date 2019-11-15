@@ -6,13 +6,15 @@ using Discord.WebSocket;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
+using Microsoft.Extensions.DependencyInjection;
+using CaligulaLite.Services;
 
 namespace CaligulaLite
 {
     class Program
     {
-        private readonly DiscordSocketClient _client;
         private readonly IConfiguration _config;
+        private  DiscordSocketClient _client;
 
         static void Main(string[] args)
         {
@@ -21,32 +23,38 @@ namespace CaligulaLite
 
         public Program()
         {
-            _client = new DiscordSocketClient();
-
-            //Hook into log event and write it onto the console
-            _client.Log += LogAsync;
-
-            //Hook into client ready evet
-            _client.Ready += ReadyAsync;
-
-            //Hook into message received event to handle hello world example
-            _client.MessageReceived += MessageReceivedAsync;
-
-            //Create the config
+            // Create the config
             var _builder = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
                 .AddJsonFile(path: "config.json");
+            
+            // build and assign config  
             _config = _builder.Build();
         }
 
         public async Task MainAsync()
         {
-            //Get token value from configuration file
-            await _client.LoginAsync(TokenType.Bot, _config["Token"]);
-            await _client.StartAsync();
+            // call ConfigureServices to create the ServiceCollection/Provider for passing around services
+            using(var services = ConfigureServices())
+            {
+                // get and set client
+                var client = services.GetRequiredService<DiscordSocketClient>();
+                _client = client;
 
-            //Block the program until it is closed
-            await Task.Delay(-1);
+                // setup logging and ready event
+                client.Log += LogAsync;
+                client.Ready += ReadyAsync;
+                services.GetRequiredService<CommandService>().Log += LogAsync;
+
+                // get token from config and start bot
+                await client.LoginAsync(TokenType.Bot, _config["Token"]);
+                await client.StartAsync();
+
+                // get CommandHandler class and call InitializeAsync method to start the service
+                await services.GetRequiredService<CommandHandler>().InitializeAsync();
+
+                await Task.Delay(-1);
+            }
         }
 
         private Task LogAsync(LogMessage log)
@@ -60,17 +68,15 @@ namespace CaligulaLite
             Console.WriteLine($"Connected as -> [] :)");
             return Task.CompletedTask;
         }
-        
-        private async Task MessageReceivedAsync(SocketMessage message)
-        {
-            //This ensures we don't loop things by responding to ourselves (as the bot)
-            if (message.Author.Id == _client.CurrentUser.Id)
-                return;
 
-            if (message.Content == ".hello")
-            {
-                await message.Channel.SendMessageAsync("world!");
-            }  
+        private ServiceProvider ConfigureServices()
+        {
+            return new ServiceCollection()
+                .AddSingleton(_config)
+                .AddSingleton<DiscordSocketClient>()
+                .AddSingleton<CommandService>()
+                .AddSingleton<CommandHandler>()
+                .BuildServiceProvider();
         }
     }
 }
