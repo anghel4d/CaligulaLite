@@ -49,8 +49,6 @@ namespace CaligulaLite.Modules
             
             // we can get lots of information from the Context that is passed into the commands
             // here I'm setting up the preface with the user's name and a comma
-            sb.AppendLine($",");
-            sb.AppendLine();
 
             // let's make sure the supplied question isn't null 
             if (args == null)
